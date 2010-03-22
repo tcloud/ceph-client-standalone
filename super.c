@@ -56,10 +56,15 @@ static void ceph_put_super(struct super_block *s)
 	 * ensure we release the bdi before put_anon_super releases
 	 * the device name.
 	 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 	if (s->s_bdi == &client->backing_dev_info) {
+#endif
 		bdi_unregister(&client->backing_dev_info);
+# if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 		s->s_bdi = NULL;
 	}
+#endif
+
 
 	return;
 }
@@ -155,7 +160,11 @@ struct kmem_cache *ceph_cap_cachep;
 struct kmem_cache *ceph_dentry_cachep;
 struct kmem_cache *ceph_file_cachep;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)
 static void ceph_inode_init_once(void *foo)
+#else
+static void ceph_inode_init_once(struct kmem_cache *cachep, void *foo)
+#endif
 {
 	struct ceph_inode_info *ci = foo;
 	inode_init_once(&ci->vfs_inode);
@@ -183,7 +192,11 @@ static int default_congestion_kb(void)
 	 * This allows larger machines to have larger/more transfers.
 	 * Limit the default to 256M
 	 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 	congestion_kb = (16*int_sqrt(totalram_pages)) << (PAGE_SHIFT-10);
+#else
+	congestion_kb = (16*int_sqrt(num_physpages)) << (PAGE_SHIFT-10);
+#endif
 	if (congestion_kb > 256*1024)
 		congestion_kb = 256*1024;
 
@@ -239,13 +252,28 @@ static void destroy_caches(void)
  * ceph_umount_begin - initiate forced umount.  Tear down down the
  * mount, skipping steps that may hang while waiting for server(s).
  */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26)
+static void ceph_umount_begin(struct vfsmount *vfsmnt, int flags)
+#else
 static void ceph_umount_begin(struct super_block *sb)
+#endif
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26)
+	struct ceph_client *client = ceph_sb_to_client(vfsmnt->mnt_sb);
+#else
 	struct ceph_client *client = ceph_sb_to_client(sb);
+#endif
 
 	dout("ceph_umount_begin - starting forced umount\n");
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 26)
+	if (!(flags & MNT_FORCE))
+		return;
+#endif
+
 	if (!client)
 		return;
+
 	client->mount_state = CEPH_MOUNT_SHUTDOWN;
 	return;
 }
@@ -719,7 +747,11 @@ static struct dentry *open_root_dentry(struct ceph_client *client,
 		    client->sb->s_root == NULL)
 			root = d_alloc_root(req->r_target_inode);
 		else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28)
 			root = d_obtain_alias(req->r_target_inode);
+#else
+			root = d_alloc_anon(req->r_target_inode);
+#endif
 		req->r_target_inode = NULL;
 		dout("open_root_inode success, root dentry is %p\n", root);
 	} else {
@@ -886,16 +918,21 @@ static int ceph_compare_super(struct super_block *sb, void *data)
  */
 static int ceph_register_bdi(struct super_block *sb, struct ceph_client *client)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 26)
 	int err;
+#endif
 
 	/* set ra_pages based on rsize mount option? */
 	if (client->mount_args->rsize >= PAGE_CACHE_SIZE)
 		client->backing_dev_info.ra_pages =
 			(client->mount_args->rsize + PAGE_CACHE_SIZE - 1)
 			>> PAGE_SHIFT;
+
 	err = bdi_register_dev(&client->backing_dev_info, sb->s_dev);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 	if (!err)
 		sb->s_bdi = &client->backing_dev_info;
+#endif
 	return err;
 }
 

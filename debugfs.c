@@ -435,9 +435,11 @@ int ceph_debugfs_client_init(struct ceph_client *client)
 	if (!client->debugfs_congestion_kb)
 		goto out;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 	sprintf(name, "../../bdi/%s", dev_name(client->sb->s_bdi->dev));
 	client->debugfs_bdi = debugfs_create_symlink("bdi", client->debugfs_dir,
 						     name);
+#endif
 
 	return 0;
 
@@ -448,7 +450,9 @@ out:
 
 void ceph_debugfs_client_cleanup(struct ceph_client *client)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 	debugfs_remove(client->debugfs_bdi);
+#endif
 	debugfs_remove(client->debugfs_caps);
 	debugfs_remove(client->debugfs_dentry_lru);
 	debugfs_remove(client->debugfs_osdmap);

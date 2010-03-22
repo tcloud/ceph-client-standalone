@@ -813,7 +813,11 @@ static inline void ceph_remove_cap(struct ceph_cap *cap)
 extern void ceph_put_cap(struct ceph_cap *cap);
 
 extern void ceph_queue_caps_release(struct inode *inode);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34)
 extern int ceph_write_inode(struct inode *inode, struct writeback_control *wbc);
+#else
+extern int ceph_write_inode(struct inode *inode, int wait);
+#endif
 extern int ceph_fsync(struct file *file, struct dentry *dentry, int datasync);
 extern void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 				    struct ceph_mds_session *session);

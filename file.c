@@ -408,20 +408,33 @@ static void zero_page_vector_range(int off, int len, struct page **pages)
 		int end = min((int)PAGE_CACHE_SIZE, off + len);
 		dout("zeroing %d %p head from %d\n", i, pages[i],
 		     (int)off);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
 		zero_user_segment(pages[i], off, end);
+#else
+		zero_user_page(pages[i], off, PAGE_CACHE_SIZE - off,
+			       KM_USER0);
+#endif
 		len -= (end - off);
 		i++;
 	}
 	while (len >= PAGE_CACHE_SIZE) {
 		dout("zeroing %d %p len=%d\n", i, pages[i], len);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
 		zero_user_segment(pages[i], 0, PAGE_CACHE_SIZE);
+#else
+		zero_user_page(pages[i], 0, PAGE_CACHE_SIZE, KM_USER0);
+#endif
 		len -= PAGE_CACHE_SIZE;
 		i++;
 	}
 	/* trailing partial page? */
 	if (len) {
 		dout("zeroing %d %p tail to %d\n", i, pages[i], (int)len);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)
 		zero_user_segment(pages[i], 0, len);
+#else
+		zero_user_page(pages[i], 0, PAGE_CACHE_SIZE - len, KM_USER0);
+#endif
 	}
 }
 
@@ -844,8 +857,12 @@ retry_snap:
 		if ((ret >= 0 || ret == -EIOCBQUEUED) &&
 		    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host)
 		     || ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32)
 			err = vfs_fsync_range(file, file->f_path.dentry,
 					      pos, pos + ret - 1, 1);
+#else
+			err = sync_page_range(inode, &inode->i_data, pos, ret);
+#endif
 			if (err < 0)
 				ret = err;
 		}
