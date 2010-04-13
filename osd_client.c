@@ -1064,6 +1064,7 @@ done:
 	if (newmap)
 		kick_requests(osdc, NULL);
 	up_read(&osdc->map_sem);
+	wake_up(&osdc->client->auth_wq);
 	return;
 
 bad:
