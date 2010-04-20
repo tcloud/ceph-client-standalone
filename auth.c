@@ -2,6 +2,7 @@
 
 #include <linux/module.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include "types.h"
 #include "auth_none.h"
