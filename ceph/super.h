@@ -290,6 +290,7 @@ struct ceph_inode_info {
 	u64 i_reported_size; /* (max_)size reported to or requested of mds */
 	u64 i_wanted_max_size;     /* offset we'd like to write too */
 	u64 i_requested_max_size;  /* max_size we've requested */
+	int i_quota_exceeded;
 
 	/* held references to caps */
 	int i_pin_ref;

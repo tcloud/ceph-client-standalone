@@ -2037,7 +2037,11 @@ static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
 		if (endoff >= 0 && endoff > (loff_t)ci->i_max_size) {
 			dout("get_cap_refs %p endoff %llu > maxsize %llu\n",
 			     inode, endoff, ci->i_max_size);
-			if (endoff > ci->i_wanted_max_size) {
+			if (ci->i_quota_exceeded) {
+				dout("out out quot\n");
+				*err = -EDQUOT;
+				ret = 1;
+			} else if (endoff > ci->i_wanted_max_size) {
 				*check_max = 1;
 				ret = 1;
 			}
@@ -2132,9 +2136,10 @@ retry:
 				       try_get_cap_refs(ci, need, want,
 							got, endoff,
 							&check_max, &err));
+
 	if (err)
 		ret = err;
-	if (check_max)
+	if (!err && check_max)
 		goto retry;
 	return ret;
 }
@@ -2316,6 +2321,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	int issued, implemented, used, wanted, dirty;
 	u64 size = le64_to_cpu(grant->size);
 	u64 max_size = le64_to_cpu(grant->max_size);
+	int quota_exceeded = le32_to_cpu(grant->quota_exceeded);
 	struct timespec mtime, atime, ctime;
 	int check_caps = 0;
 	int wake = 0;
@@ -2403,6 +2409,10 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 		}
 		wake = 1;
 	}
+
+	ci->i_quota_exceeded = quota_exceeded;
+	if (quota_exceeded)
+		wake = 1;
 
 	/* check cap bits */
 	wanted = __ceph_caps_wanted(ci);
