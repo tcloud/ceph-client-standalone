@@ -1542,7 +1542,7 @@ retry_locked:
 				goto ack;
 			}
 
-			if (client->mount_args->folder_quota) {
+			if (!client->mount_args->folder_quota) {
 				/* approaching file_max? */
 				if ((inode->i_size << 1) >= ci->i_max_size &&
 				    (ci->i_reported_size << 1) < ci->i_max_size) {

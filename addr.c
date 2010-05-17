@@ -1125,7 +1125,7 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 	up_read(&mdsc->snap_rwsem);
 	page_cache_release(page);
 
-	if (check_cap && client->mount_args->folder_quota)
+	if (check_cap && !client->mount_args->folder_quota)
 		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_AUTHONLY, NULL);
 
 	return copied;
