@@ -738,7 +738,7 @@ int ceph_setxattr(struct dentry *dentry, const char *name,
 	spin_lock(&inode->i_lock);
 retry:
 	issued = __ceph_caps_issued(ci, NULL);
-	if (!(issued & CEPH_CAP_XATTR_EXCL))
+	if (!(issued & CEPH_CAP_XATTR_EXCL) || strcmp(name, "user.quota") == 0)
 		goto do_sync;
 	__build_xattrs(inode);
 
