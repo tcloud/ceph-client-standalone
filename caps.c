@@ -1542,11 +1542,13 @@ retry_locked:
 				goto ack;
 			}
 
-			/* approaching file_max? */
-			if ((inode->i_size << 1) >= ci->i_max_size &&
-			    (ci->i_reported_size << 1) < ci->i_max_size) {
-				dout("i_size approaching max_size\n");
-				goto ack;
+			if (client->mount_args->folder_quota) {
+				/* approaching file_max? */
+				if ((inode->i_size << 1) >= ci->i_max_size &&
+				    (ci->i_reported_size << 1) < ci->i_max_size) {
+					dout("i_size approaching max_size\n");
+					goto ack;
+				}
 			}
 		}
 		/* flush anything dirty? */
@@ -1952,6 +1954,7 @@ static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
 			    int *got, loff_t endoff, int *check_max, int *err)
 {
 	struct inode *inode = &ci->vfs_inode;
+	struct ceph_client *client = ceph_inode_to_client(inode);
 	int ret = 0;
 	int have, implemented;
 	int file_wanted;
@@ -1975,6 +1978,13 @@ static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
 			dout("get_cap_refs %p endoff %llu > maxsize %llu\n",
 			     inode, endoff, ci->i_max_size);
 			if (endoff > ci->i_wanted_max_size) {
+				/* 
+ 				 * out of quota 
+				 * FIXME: Find a better way to detect it.
+ 				 */
+				if (client->mount_args->folder_quota &&
+					    ci->i_wanted_max_size == 0)
+					*err = -EDQUOT;
 				*check_max = 1;
 				ret = 1;
 			}
@@ -2025,6 +2035,15 @@ out:
 	return ret;
 }
 
+static u64 calc_wanted_size(struct ceph_inode_info *ci, loff_t endoff)
+{
+	#ifndef ROUND_UP_TO
+	# define ROUND_UP_TO(n, d) (((n)+(d)-1) & ~((d)-1))
+	#endif
+	return ROUND_UP_TO(endoff, 
+	    ci->i_layout.fl_object_size*ci->i_layout.fl_stripe_count);
+}
+
 /*
  * Check the offset we are writing up to against our current
  * max_size.  If necessary, tell the MDS we want to write to
@@ -2033,6 +2052,7 @@ out:
 static void check_max_size(struct inode *inode, loff_t endoff)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_client *client = ceph_inode_to_client(inode);
 	int check = 0;
 
 	/* do we need to explicitly request a larger max_size? */
@@ -2042,7 +2062,11 @@ static void check_max_size(struct inode *inode, loff_t endoff)
 	    endoff > ci->i_wanted_max_size) {
 		dout("write %p at large endoff %llu, req max_size\n",
 		     inode, endoff);
-		ci->i_wanted_max_size = endoff;
+		/* FIXME: henry: need this? */
+		if (client->mount_args->folder_quota)
+			ci->i_wanted_max_size = calc_wanted_size(ci, endoff);
+		else
+			ci->i_wanted_max_size = endoff;
 		check = 1;
 	}
 	spin_unlock(&inode->i_lock);
@@ -2069,9 +2093,10 @@ retry:
 				       try_get_cap_refs(ci, need, want,
 							got, endoff,
 							&check_max, &err));
+
 	if (err)
 		ret = err;
-	if (check_max)
+	if (!err && check_max)
 		goto retry;
 	return ret;
 }
@@ -2246,6 +2271,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	__releases(session->s_mutex)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_client *client = ceph_inode_to_client(inode);
 	int mds = session->s_mds;
 	int seq = le32_to_cpu(grant->seq);
 	int newcaps = le32_to_cpu(grant->caps);
@@ -2336,6 +2362,15 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 			ci->i_wanted_max_size = 0;  /* reset */
 			ci->i_requested_max_size = 0;
 		}
+		wake = 1;
+	} else if(client->mount_args->folder_quota) {
+		dout("max_size unchanged!! out of quota\n");
+		/* 
+		 * reset
+		 * FIXME: find a better approach to mark out-of-quota
+		 */
+		ci->i_wanted_max_size = 0;
+		ci->i_requested_max_size = 0;
 		wake = 1;
 	}
 

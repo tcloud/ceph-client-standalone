@@ -735,9 +735,10 @@ out:
 		*offset = pos;
 		if (pos > i_size_read(inode))
 			check_caps = ceph_inode_set_size(inode, pos);
-		if (check_caps)
+		if (!client->mount_args->folder_quota && check_caps)
 			ceph_check_caps(ceph_inode(inode), CHECK_CAPS_AUTHONLY,
 					NULL);
+		
 	}
 	return ret;
 }
@@ -821,6 +822,7 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_dentry->d_inode;
+	struct ceph_client *client = ceph_inode_to_client(inode);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_osd_client *osdc = &ceph_sb_to_client(inode->i_sb)->osdc;
 	loff_t endoff = pos + iov->iov_len;
@@ -871,6 +873,9 @@ retry_snap:
 		spin_lock(&inode->i_lock);
 		__ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
 		spin_unlock(&inode->i_lock);
+		if (client->mount_args->folder_quota)
+			/* force to update file size */
+			ceph_check_caps(ceph_inode(inode), CHECK_CAPS_FLUSH, NULL);
 	}
 
 out:

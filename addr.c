@@ -1099,8 +1099,8 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
 	int check_cap = 0;
 
-	dout("write_end file %p inode %p page %p %d~%d (%d)\n", file,
-	     inode, page, (int)pos, (int)copied, (int)len);
+	dout("write_end file %p inode %p page %p %d~%d (%d). options.quota_folder(%d)\n", file,
+	     inode, page, (int)pos, (int)copied, (int)len, client->mount_args->folder_quota);
 
 	/* zero the stale part of the page if we did a short copy */
 	if (copied < len) {
@@ -1125,7 +1125,7 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 	up_read(&mdsc->snap_rwsem);
 	page_cache_release(page);
 
-	if (check_cap)
+	if (check_cap && client->mount_args->folder_quota)
 		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_AUTHONLY, NULL);
 
 	return copied;

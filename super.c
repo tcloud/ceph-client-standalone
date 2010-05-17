@@ -357,6 +357,7 @@ enum {
 	Opt_cap_release_safety,
 	Opt_readdir_max_entries,
 	Opt_congestion_kb,
+	Opt_folder_quota,
 	Opt_last_int,
 	/* int args above */
 	Opt_snapdirname,
@@ -402,6 +403,7 @@ static match_table_t arg_tokens = {
 	{Opt_norbytes, "norbytes"},
 	{Opt_nocrc, "nocrc"},
 	{Opt_noasyncreaddir, "noasyncreaddir"},
+	{Opt_folder_quota, "folder_quota=%d"},
 	{-1, NULL}
 };
 
@@ -439,6 +441,7 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 	args->cap_release_safety = CEPH_CAP_RELEASE_SAFETY_DEFAULT;
 	args->max_readdir = CEPH_MAX_READDIR_DEFAULT;
 	args->congestion_kb = default_congestion_kb();
+	args->folder_quota = 0;
 
 	/* ip1[:port1][,ip2[:port2]...]:/subdir/in/fs */
 	err = -EINVAL;
@@ -570,6 +573,9 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 			break;
 		case Opt_noasyncreaddir:
 			args->flags |= CEPH_OPT_NOASYNCREADDIR;
+			break;
+		case Opt_folder_quota:
+			args->folder_quota = intval;
 			break;
 
 		default:
