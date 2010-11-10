@@ -9,6 +9,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#include "../include-ceph/mon_client.h"
 
 /*
  * Ceph file operations
@@ -691,8 +692,10 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		return -EROFS;
 
 retry_snap:
-	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL))
+	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL)) {
+		ceph_monc_request_next_osdmap(&osdc->client->monc);
 		return -ENOSPC;
+	}
 	__ceph_do_pending_vmtruncate(inode);
 	dout("aio_write %p %llx.%llx %llu~%u getting caps. i_size %llu\n",
 	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
