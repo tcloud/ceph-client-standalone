@@ -296,6 +296,7 @@ void ceph_monc_request_next_osdmap(struct ceph_mon_client *monc)
 		__send_subscribe(monc);
 	mutex_unlock(&monc->mutex);
 }
+EXPORT_SYMBOL(ceph_monc_request_next_osdmap);
 
 /*
  *
