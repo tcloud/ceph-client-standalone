@@ -742,8 +742,7 @@ retry_snap:
 		__ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
 		spin_unlock(&inode->i_lock);
 		// If quota enabled, force to update size to MDS?
-		//	/* force to update file size */
-		//	ceph_check_caps(ceph_inode(inode), CHECK_CAPS_FLUSH, NULL);
+		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_FLUSH, NULL);
 	}
 
 out:
