@@ -110,8 +110,15 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 	return ret;
 }
 
+static size_t ceph_vxattrcb_max_size(struct ceph_inode_info *ci, char *val,
+				   size_t size)
+{
+	return snprintf(val, size, "%lld", ci->i_max_size);
+}
+
 static struct ceph_vxattr_cb ceph_file_vxattrs[] = {
 	{ true, "ceph.layout", ceph_vxattrcb_layout},
+	{ true, "ceph.max_size", ceph_vxattrcb_max_size},
 	{ NULL, NULL }
 };
 
