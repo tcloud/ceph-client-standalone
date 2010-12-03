@@ -1678,7 +1678,8 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 			goto out;
 		}
 		if ((issued & CEPH_CAP_FILE_EXCL) &&
-		    attr->ia_size > inode->i_size) {
+		    attr->ia_size > inode->i_size &&
+		    attr->ia_size <= ci->i_max_size) {
 			inode->i_size = attr->ia_size;
 			inode->i_blocks =
 				(attr->ia_size + (1 << 9) - 1) >> 9;
