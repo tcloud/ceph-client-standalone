@@ -1298,11 +1298,6 @@ int ceph_inode_set_size(struct inode *inode, loff_t size)
 	inode->i_size = size;
 	inode->i_blocks = (size + (1 << 9) - 1) >> 9;
 
-	/* tell the MDS if we are approaching max_size */
-	if ((size << 1) >= ci->i_max_size &&
-	    (ci->i_reported_size << 1) < ci->i_max_size)
-		ret = 1;
-
 	spin_unlock(&inode->i_lock);
 	return ret;
 }
