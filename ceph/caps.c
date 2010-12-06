@@ -1573,13 +1573,6 @@ retry_locked:
 				dout("requesting new max_size\n");
 				goto ack;
 			}
-
-			/* approaching file_max? */
-			if ((inode->i_size << 1) >= ci->i_max_size &&
-			    (ci->i_reported_size << 1) < ci->i_max_size) {
-				dout("i_size approaching max_size\n");
-				goto ack;
-			}
 		}
 		/* flush anything dirty? */
 		if (cap == ci->i_auth_cap && (flags & CHECK_CAPS_FLUSH) &&
@@ -2104,8 +2097,7 @@ static void check_max_size(struct inode *inode, loff_t endoff)
 
 	/* do we need to explicitly request a larger max_size? */
 	spin_lock(&inode->i_lock);
-	if ((endoff >= ci->i_max_size ||
-	     endoff > (inode->i_size << 1)) &&
+	if (endoff >= ci->i_max_size &&
 	    endoff > ci->i_wanted_max_size) {
 		dout("write %p at large endoff %llu, req max_size\n",
 		     inode, endoff);
