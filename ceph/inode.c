@@ -1666,8 +1666,8 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 	if (ia_valid & ATTR_SIZE) {
-		dout("setattr %p size %lld -> %lld\n", inode,
-		     inode->i_size, attr->ia_size);
+		dout("setattr %p size %lld -> %lld (max %lld)\n", inode,
+		     inode->i_size, attr->ia_size, ci->i_max_size);
 		if (attr->ia_size > inode->i_sb->s_maxbytes) {
 			err = -EINVAL;
 			goto out;
