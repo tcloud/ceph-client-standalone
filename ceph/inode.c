@@ -1298,7 +1298,6 @@ out:
 
 int ceph_inode_set_size(struct inode *inode, loff_t size)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
 	int ret = 0;
 
 	spin_lock(&inode->i_lock);
