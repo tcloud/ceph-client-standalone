@@ -1566,7 +1566,7 @@ retry_locked:
 		     ceph_cap_string(revoking));
 
 		if (cap == ci->i_auth_cap &&
-		    (cap->issued & CEPH_CAP_FILE_WR)) {
+                    ((cap->issued | want) & CEPH_CAP_FILE_WR)) {
 			/* request larger max_size from MDS? */
 			if (ci->i_wanted_max_size > ci->i_max_size &&
 			    ci->i_wanted_max_size > ci->i_requested_max_size) {
