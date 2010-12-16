@@ -3317,8 +3317,8 @@ static void con_put(struct ceph_connection *con)
 {
 	struct ceph_mds_session *s = con->private;
 
-	ceph_put_mds_session(s);
 	dout("mdsc con_put %p (%d)\n", s, atomic_read(&s->s_ref));
+	ceph_put_mds_session(s);
 }
 
 /*
