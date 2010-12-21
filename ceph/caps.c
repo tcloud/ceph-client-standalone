@@ -2131,7 +2131,7 @@ retry:
 
 	if (err)
 		ret = err;
-	if (!err && check_max)
+	if (check_max)
 		goto retry;
 	return ret;
 }
