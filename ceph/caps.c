@@ -1768,11 +1768,12 @@ static int caps_are_flushed(struct inode *inode, unsigned tid)
 static void sync_write_wait(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct list_head *head = &ci->i_unsafe_writes;
+	struct list_head *head;
 	struct ceph_osd_request *req;
 	u64 last_tid;
 
 	spin_lock(&ci->i_unsafe_lock);
+	head = &ci->i_unsafe_writes;
 	if (list_empty(head))
 		goto out;
 
