@@ -463,13 +463,25 @@ struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 	 * The number of concurrent works can be high but they don't need
 	 * to be processed in parallel, limit concurrency.
 	 */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	fsc->wb_wq = alloc_workqueue("ceph-writeback", 0, 1);
+#else
+	fsc->wb_wq = create_singlethread_workqueue("ceph-writeback");
+#endif
 	if (fsc->wb_wq == NULL)
 		goto fail_bdi;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	fsc->pg_inv_wq = alloc_workqueue("ceph-pg-invalid", 0, 1);
+#else
+	fsc->pg_inv_wq = create_singlethread_workqueue("ceph-pg-invalid");
+#endif
 	if (fsc->pg_inv_wq == NULL)
 		goto fail_wb_wq;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 36)
 	fsc->trunc_wq = alloc_workqueue("ceph-trunc", 0, 1);
+#else
+	fsc->trunc_wq = create_singlethread_workqueue("ceph-trunc");
+#endif
 	if (fsc->trunc_wq == NULL)
 		goto fail_pg_inv_wq;
 
