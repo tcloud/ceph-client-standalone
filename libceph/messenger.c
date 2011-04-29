@@ -1287,7 +1287,7 @@ static int process_connect(struct ceph_connection *con)
 		dout("process_connect got RETRY my seq = %u, peer_seq = %u\n",
 		     le32_to_cpu(con->out_connect.connect_seq),
 		     le32_to_cpu(con->in_connect.connect_seq));
-		con->connect_seq = le32_to_cpu(con->in_connect.connect_seq);
+		con->connect_seq = le32_to_cpu(con->in_connect.connect_seq)+1;
 		prepare_write_connect(con->msgr, con, 0);
 		prepare_read_connect(con);
 		break;
