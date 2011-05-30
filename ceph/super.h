@@ -838,4 +838,10 @@ static inline struct inode *get_dentry_parent_inode(struct dentry *dentry)
 extern int ceph_fs_debugfs_init(struct ceph_fs_client *client);
 extern void ceph_fs_debugfs_cleanup(struct ceph_fs_client *client);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37)
+static inline void ihold(struct inode *inode) {
+	WARN_ON(atomic_inc_return(&inode->i_count) < 2);
+}
+#endif
+
 #endif /* _FS_CEPH_SUPER_H */
