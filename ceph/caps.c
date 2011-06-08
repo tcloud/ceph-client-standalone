@@ -1569,8 +1569,7 @@ retry_locked:
 		if (cap == ci->i_auth_cap &&
 		    (cap->issued & CEPH_CAP_FILE_WR)) {
 			/* request larger max_size from MDS? */
-			if (ci->i_wanted_max_size > ci->i_max_size &&
-			    ci->i_wanted_max_size > ci->i_requested_max_size) {
+			if (ci->i_wanted_max_size > ci->i_max_size) {
 				dout("requesting new max_size\n");
 				goto ack;
 			}
@@ -2099,8 +2098,7 @@ static void check_max_size(struct inode *inode, loff_t endoff)
 
 	/* do we need to explicitly request a larger max_size? */
 	spin_lock(&inode->i_lock);
-	if (endoff >= ci->i_max_size &&
-	    endoff > ci->i_wanted_max_size) {
+	if (endoff >= ci->i_max_size) {
 		dout("write %p at large endoff %llu, req max_size\n",
 		     inode, endoff);
 		ci->i_wanted_max_size = endoff;
@@ -2126,11 +2124,13 @@ retry:
 		check_max_size(&ci->vfs_inode, endoff);
 	check_max = 0;
 	err = 0;
-	ret = wait_event_interruptible(ci->i_cap_wq,
+	ret = wait_event_interruptible_timeout(ci->i_cap_wq,
 				       try_get_cap_refs(ci, need, want,
 							got, endoff,
-							&check_max, &err));
+							&check_max, &err), 5 * HZ);
 
+	if (ret == 0)
+		goto retry;
 	if (err)
 		ret = err;
 	if (check_max)
