@@ -288,9 +288,9 @@ static int striped_read(struct inode *inode,
 {
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	u64 pos, this_len;
+	u64 pos, this_len, left;
 	int io_align, page_align;
-	int left, pages_left;
+	int pages_left;
 	int read;
 	struct page **page_pos;
 	int ret;
@@ -306,11 +306,16 @@ static int striped_read(struct inode *inode,
 	read = 0;
 	io_align = off & ~PAGE_MASK;
 
+	if (pos + left > inode->i_size) {
+		*checkeof = 1;
+		left = inode->i_size - pos;
+	}
 more:
 	if (o_direct)
 		page_align = (pos - io_align + buf_align) & ~PAGE_MASK;
 	else
 		page_align = pos & ~PAGE_MASK;
+
 	this_len = left;
 	ret = ceph_osdc_readpages(&fsc->client->osdc, ceph_vino(inode),
 				  &ci->i_layout, pos, &this_len,
@@ -319,49 +324,34 @@ more:
 				  page_pos, pages_left, page_align);
 	if (ret == -ENOENT)
 		ret = 0;
-	hit_stripe = this_len < left;
+
+	hit_stripe = ret >= 0 && this_len < left;
 	was_short = ret >= 0 && ret < this_len;
-	dout("striped_read %llu~%u (read %u) got %d%s%s\n", pos, left, read,
+	dout("striped_read %llu~%llu (read %u) got %d%s%s\n", pos, left, read,
 	     ret, hit_stripe ? " HITSTRIPE" : "", was_short ? " SHORT" : "");
 
-	if (ret > 0) {
+	if (was_short) {
+		/* zero trailing bytes */
+		dout("zero trailing %llu bytes\n", this_len - ret);
+		ceph_zero_page_vector_range(page_align + ret, this_len - ret,
+					    page_pos);
+	}
+
+	if (ret >= 0) {
 		int didpages = (page_align + ret) >> PAGE_CACHE_SHIFT;
 
-		if (read < pos - off) {
-			dout(" zero gap %llu to %llu\n", off + read, pos);
-			ceph_zero_page_vector_range(page_align + read,
-						    pos - off - read, pages);
-		}
-		pos += ret;
-		read = pos - off;
-		left -= ret;
+		pos += this_len;
+		read += this_len;
+		left -= this_len;
 		page_pos += didpages;
 		pages_left -= didpages;
-
-		/* hit stripe? */
-		if (left && hit_stripe)
-			goto more;
 	}
 
-	if (was_short) {
-		/* did we bounce off eof? */
-		if (pos + left > inode->i_size)
-			*checkeof = 1;
-
-		/* zero trailing bytes (inside i_size) */
-		if (left > 0 && pos < inode->i_size) {
-			if (pos + left > inode->i_size)
-				left = inode->i_size - pos;
-
-			dout("zero tail %d\n", left);
-			ceph_zero_page_vector_range(page_align + read, left,
-						    pages);
-			read += left;
-		}
-	}
-
+	if (left && hit_stripe)
+		goto more;
 	if (ret >= 0)
 		ret = read;
+
 	dout("striped_read returns %d\n", ret);
 	return ret;
 }
