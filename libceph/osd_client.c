@@ -480,6 +480,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	/* in case it differs from natural alignment that calc_layout
 	   filled in for us */
 	req->r_page_alignment = page_align;
+	req->r_num_pages = calc_pages_for(page_align, *plen);
 
 	ceph_osdc_build_request(req, off, plen, ops,
 				snapc,
